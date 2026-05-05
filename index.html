@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Escape Room: Sistema Linfatico</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+html,body{width:100%;height:100%;overflow:hidden;position:fixed;background:#1a1a2e;font-family:'Segoe UI',Inter,system-ui,sans-serif}
+
+/* COLORS */
+:root{--gr:#A3D9A5;--aq:#BEE7E8;--lv:#EADFF7;--cr:#FFF5E6;--wh:#F7F7F9;--gy:#EDEDED;--co:#FFB3A7;--fl:#7FD6B8;--rd:#E64A4A;--bg:#1a1a2e;--card:#16213e;--card2:#0f3460}
+
+/* SCREENS */
+.scr{position:fixed;top:0;left:0;width:100%;height:100%;display:none;flex-direction:column;z-index:1;overflow-y:auto}
+.scr.on{display:flex}
+.scr>*{pointer-events:all}
+
+/* AUTH */
+#sAuth{background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460);align-items:center;justify-content:center;gap:16px;padding:20px}
+.authBox{background:rgba(255,255,255,0.06);backdrop-filter:blur(12px);border:1px solid rgba(163,217,165,0.2);border-radius:20px;padding:28px;width:min(380px,92%);text-align:center}
+.authBox h1{font-size:28px;color:var(--gr);margin-bottom:4px}
+.authBox h2{font-size:14px;color:var(--aq);font-weight:400;margin-bottom:20px}
+.authBox input,.authBox select{width:100%;padding:14px;border:1px solid rgba(255,255,255,0.15);border-radius:10px;background:rgba(255,255,255,0.08);color:#fff;font-size:16px;margin-bottom:10px;outline:none}
+.authBox input::placeholder{color:rgba(255,255,255,0.4)}
+.authBox select option{background:var(--card);color:#fff}
+.authBtn{width:100%;padding:14px;border:none;border-radius:10px;background:var(--gr);color:#1a1a2e;font-size:18px;font-weight:700;cursor:pointer;margin-top:4px}
+.authBtn:hover{background:var(--fl)}
+.authAlt{color:rgba(255,255,255,0.4);font-size:13px;margin-top:12px;cursor:pointer}
+
+/* GAME SCREEN */
+#sGame{background:var(--bg);overflow:hidden}
+
+/* TOP BAR */
+.topBar{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:rgba(0,0,0,0.3);border-bottom:1px solid rgba(163,217,165,0.15);flex-shrink:0;min-height:50px}
+.roomName{font-size:16px;font-weight:700;color:var(--gr)}
+.timer{font-size:18px;font-weight:700;color:var(--aq);font-variant-numeric:tabular-nums}
+.hintsLeft{font-size:12px;color:rgba(255,255,255,0.5)}
+
+/* ROOM CONTENT */
+.roomContent{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:16px;overflow-y:auto}
+.roomTitle{font-size:clamp(20px,5vw,28px);font-weight:700;color:var(--gr);text-align:center}
+.roomDesc{font-size:14px;color:rgba(255,255,255,0.7);text-align:center;line-height:1.6;max-width:500px}
+.puzzleArea{width:min(500px,92%);background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:20px;min-height:200px}
+
+/* DRAG PUZZLE */
+.dragItems{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-bottom:16px}
+.dragItem{padding:10px 16px;background:var(--card);border:2px solid rgba(163,217,165,0.3);border-radius:10px;color:#fff;font-size:14px;cursor:pointer;transition:all .2s;user-select:none;-webkit-user-select:none}
+.dragItem.selected{border-color:var(--fl);background:rgba(127,214,184,0.2)}
+.dragItem.placed{opacity:0.4;pointer-events:none}
+.dropSlots{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+.dropSlot{width:min(140px,40%);min-height:50px;border:2px dashed rgba(255,255,255,0.2);border-radius:10px;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.3);font-size:12px;text-align:center;padding:8px;transition:all .2s}
+.dropSlot.filled{border-style:solid;border-color:var(--fl);background:rgba(127,214,184,0.1);color:#fff}
+.dropSlot.correct{border-color:var(--gr);background:rgba(163,217,165,0.15)}
+.dropSlot.wrong{border-color:var(--rd);background:rgba(230,74,74,0.1)}
+
+/* SEQUENCE PUZZLE */
+.seqList{display:flex;flex-direction:column;gap:8px;width:100%}
+.seqItem{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--card);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#fff;font-size:14px;cursor:pointer;transition:all .2s;user-select:none;-webkit-user-select:none}
+.seqItem .num{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:rgba(255,255,255,0.5);flex-shrink:0}
+.seqItem.correct .num{background:var(--gr);color:#1a1a2e}
+.seqItem.wrong .num{background:var(--rd);color:#fff}
+.seqItem.moved{background:rgba(127,214,184,0.15);border-color:var(--fl)}
+
+/* MATCHING PUZZLE */
+.matchGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%}
+.matchCol h4{font-size:12px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;text-align:center}
+.matchItem{padding:10px;background:var(--card);border:2px solid rgba(255,255,255,0.1);border-radius:8px;color:#fff;font-size:13px;cursor:pointer;text-align:center;transition:all .2s;user-select:none;-webkit-user-select:none}
+.matchItem.selected{border-color:var(--fl);background:rgba(127,214,184,0.15)}
+.matchItem.matched{border-color:var(--gr);background:rgba(163,217,165,0.15);opacity:0.7;pointer-events:none}
+.matchItem.wrong{border-color:var(--rd);background:rgba(230,74,74,0.15);animation:shake .3s}
+
+/* TRIVIA */
+.triviaQ{font-size:16px;color:#fff;text-align:center;margin-bottom:16px;line-height:1.5}
+.triviaOpts{display:flex;flex-direction:column;gap:8px;width:100%}
+.triviaOpt{padding:12px 16px;background:var(--card);border:2px solid rgba(255,255,255,0.1);border-radius:10px;color:#fff;font-size:14px;cursor:pointer;text-align:left;transition:all .2s}
+.triviaOpt:active{background:rgba(127,214,184,0.2);border-color:var(--fl)}
+.triviaOpt.tok{border-color:var(--gr);background:rgba(163,217,165,0.2)}
+.triviaOpt.tno{border-color:var(--rd);background:rgba(230,74,74,0.15)}
+
+/* CODE INPUT */
+.codeInput{display:flex;gap:8px;justify-content:center;margin:16px 0}
+.codeInput input{width:48px;height:56px;text-align:center;font-size:24px;font-weight:700;background:var(--card);border:2px solid rgba(255,255,255,0.15);border-radius:10px;color:#fff;outline:none}
+.codeInput input:focus{border-color:var(--fl)}
+
+/* BUTTONS */
+.btn{padding:12px 24px;border:2px solid;border-radius:10px;font-size:16px;font-weight:600;cursor:pointer;transition:all .2s}
+.btn:active{transform:scale(0.97)}
+.btnPri{background:var(--gr);color:#1a1a2e;border-color:var(--gr)}
+.btnPri:hover{background:var(--fl);border-color:var(--fl)}
+.btnSec{background:transparent;color:var(--aq);border-color:rgba(190,231,232,0.3)}
+.btnHint{background:transparent;color:var(--co);border-color:rgba(255,179,167,0.3);font-size:13px;padding:8px 16px}
+.btnRow{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:12px}
+
+/* HINT PANEL */
+.hintPanel{background:rgba(255,179,167,0.08);border:1px solid rgba(255,179,167,0.2);border-radius:10px;padding:12px;font-size:13px;color:var(--co);line-height:1.5;text-align:center}
+
+/* COMPLETE SCREEN */
+#sComplete{background:linear-gradient(135deg,#1a1a2e,#16213e);align-items:center;justify-content:center;gap:16px;padding:20px;text-align:center}
+.completeBox{background:rgba(255,255,255,0.06);border:1px solid rgba(163,217,165,0.2);border-radius:20px;padding:28px;width:min(400px,92%)}
+.completeBox h1{font-size:32px;color:var(--gr);margin-bottom:8px}
+.completeBox .time{font-size:20px;color:var(--aq);margin-bottom:4px}
+.completeBox .score{font-size:16px;color:var(--fl);margin-bottom:16px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+.stat{background:rgba(255,255,255,0.05);border-radius:8px;padding:12px}
+.stat .sv{font-size:20px;font-weight:700;color:var(--gr)}
+.stat .sl{font-size:11px;color:rgba(255,255,255,0.4)}
+
+/* ANALYTICS */
+#sAnl{background:linear-gradient(135deg,#1a1a2e,#16213e);padding:16px;gap:12px}
+.anC2{background:rgba(255,255,255,0.06);border:1px solid rgba(163,217,165,0.2);border-radius:16px;padding:20px;width:min(95%,600px)}
+.anC2 h2{font-size:20px;color:var(--gr);margin-bottom:12px}
+.anC2 table{width:100%;border-collapse:collapse;font-size:12px}
+.anC2 th{background:rgba(255,255,255,0.05);padding:8px;text-align:left;color:rgba(255,255,255,0.6);border-bottom:1px solid rgba(255,255,255,0.1)}
+.anC2 td{padding:8px;color:rgba(255,255,255,0.8);border-bottom:1px solid rgba(255,255,255,0.05)}
+.st2{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:16px}
+.sc2{background:rgba(255,255,255,0.05);border-radius:8px;padding:12px;text-align:center}
+.sc2 .vl{font-size:22px;font-weight:700;color:var(--gr)}
+.sc2 .lb{font-size:11px;color:rgba(255,255,255,0.4)}
+
+/* ANIMATIONS */
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes glow{0%,100%{box-shadow:0 0 8px rgba(163,217,165,0.2)}50%{box-shadow:0 0 20px rgba(163,217,165,0.4)}}
+.animIn{animation:fadeIn .4s ease}
+.glow{animation:glow 2s infinite}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(163,217,165,0.3);border-radius:2px}
+</style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div id="sAuth" class="scr on">
+<div class="authBox animIn">
+<h1>Linfovia</h1>
+<h2>Escape Room: Sistema Linfatico</h2>
+<p style="color:rgba(255,255,255,0.5);font-size:13px;margin-bottom:16px">Fuiste miniaturizado/a dentro del sistema linfatico. Resuelve 5 retos para salir.</p>
+<input id="aU" placeholder="Tu nombre" autocomplete="off">
+<input id="aP" type="password" placeholder="Contrasena">
+<select id="aR"><option value="student">Estudiante</option><option value="teacher">Docente</option></select>
+<button class="authBtn" onclick="doAuth()">Comenzar</button>
+<div class="authAlt" onclick="document.getElementById('ri').style.display=document.getElementById('ri').style.display==='none'?'block':'none'">Como funciona?</div>
+<div id="ri" style="display:none;margin-top:10px;padding:10px;background:rgba(255,255,255,0.05);border-radius:8px;font-size:12px;color:rgba(255,255,255,0.4);line-height:1.5">
+Resuelve 5 puzzles sobre el sistema linfatico. Cada sala tiene 3 pistas disponibles. Usa el boton "Pista" si te atascas. El tiempo cuenta. Docente: selecciona "Docente" para ver estadisticas.
+</div>
+</div>
+</div>
+
+<!-- GAME -->
+<div id="sGame" class="scr">
+<div class="topBar">
+<span class="roomName" id="rName">Sala 1</span>
+<span class="timer" id="timer">00:00</span>
+<span class="hintsLeft" id="hLeft">3 pistas</span>
+</div>
+<div class="roomContent" id="rContent"></div>
+</div>
+
+<!-- COMPLETE -->
+<div id="sComplete" class="scr">
+<div class="completeBox animIn" id="cBox"></div>
+</div>
+
+<!-- ANALYTICS -->
+<div id="sAnl" class="scr">
+<div class="anC2" id="anC"></div>
+</div>
+
+<script>
+/* === AUDIO === */
+var AC=null;
+function eA(){if(!AC)AC=new(window.AudioContext||window.webkitAudioContext)()}
+function tn(f,d,t,v){eA();try{var o=AC.createOscillator(),g=AC.createGain();o.type=t||'sine';o.frequency.value=f;g.gain.setValueAtTime(v||.1,AC.currentTime);g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+d);o.connect(g);g.connect(AC.destination);o.start();o.stop(AC.currentTime+d)}catch(e){}}
+function sOk(){tn(523,.15);setTimeout(function(){tn(659,.15)},120);setTimeout(function(){tn(784,.25)},240)}
+function sNo(){tn(200,.3,'square',.06)}
+function sClick(){tn(600,.06,'sine',.08)}
+function sWin(){[523,659,784,1047].forEach(function(f,i){setTimeout(function(){tn(f,.3,'sine',.1)},i*150)})}
+function sHint(){tn(400,.2,'triangle',.06)}
+
+/* === DATA === */
+function gU(){try{return JSON.parse(localStorage.getItem('er_u'))||{}}catch(e){return{}}}
+function sU(u){localStorage.setItem('er_u',JSON.stringify(u))}
+function gD(){try{return JSON.parse(localStorage.getItem('er_d'))||{a:{},s:[]}}catch(e){return{a:{},s:[]}}}
+function sD(d){localStorage.setItem('er_d',JSON.stringify(d))}
+
+/* === STATE === */
+var cur=null,G={room:0,timer:0,hints:3,timerInt:null,completed:false};
+
+/* === ROOMS DATA === */
+var rooms=[
+{
+  name:"Sala 1: El Capilar Perdido",
+  desc:"Despiertas dentro de un capilar linfatico. Para avanzar, debes reconstruir las partes del vaso linfatico en el orden correcto, desde donde se recoge la linfa hasta donde se entrega.",
+  type:"sequence",
+  items:[
+    {t:"Capilares linfaticos",ok:true},
+    {t:"Vasos colectores",ok:true},
+    {t:"Ganglios linfaticos",ok:true},
+    {t:"Troncos linfaticos",ok:true},
+    {t:"Conducto toracico",ok:true},
+    {t:"Vena subclavia",ok:true}
+  ],
+  shuffled:[[3,1,5,0,2,4],[2,0,4,1,5,3],[4,2,1,5,0,3]],
+  hint:["Recuerda: la linfa empieza en los tejidos, pasa por vasos cada vez mas grandes","El orden va de lo mas pequeno (capilares) a lo mas grande (conducto toracico)","La vena subclavia es el destino final donde la linfa vuelve a la sangre"],
+  fact:"La linfa recorre este camino: capilares -> vasos colectores -> ganglios -> troncos -> conducto toracico -> vena subclavia."
+},
+{
+  name:"Sala 2: La Valvula Secreta",
+  desc:"Una valvula bloqueada te impide pasar. Para abrirla, debes ordenar correctamente los pasos que impulsan la linfa a traves de los vasos.",
+  type:"sequence",
+  items:[
+    {t:"Musculo se contrae",ok:true},
+    {t:"Vaso se comprime",ok:true},
+    {t:"Valvula distal se abre",ok:true},
+    {t:"Linfa fluye adelante",ok:true},
+    {t:"Valvula proximal se cierra",ok:true},
+    {t:"Musculo se relaja",ok:true}
+  ],
+  hint:["Piensa: primero el musculo hace algo...","La contraccion comprime el vaso, abriendo la valvula de adelante","Al relajarse, la valvula de atras se cierra para evitar reflujo"],
+  fact:"Las valvulas semilunares permiten flujo unidireccional: se abren hacia adelante y se cierran hacia atras."
+},
+{
+  name:"Sala 3: El Ganglio",
+  desc:"Entras a un ganglio linfatico. Para cruzarlo, debes emparejar cada celula inmune con su funcion correcta.",
+  type:"match",
+  pairs:[
+    {l:"Linfocito B",r:"Produce anticuerpos"},
+    {l:"Linfocito T citotoxico",r:"Destruye celulas infectadas"},
+    {l:"Celula dendritica",r:"Presenta antigenos"},
+    {l:"Macrofago",r:"Fagocita patogenos"}
+  ],
+  hint:["Los B producen algo en forma de Y...","Los T citotoxicos 'matan' celulas malas","Las celulas dendriticas 'muestran' cosas a otros"],
+  fact:"Cada tipo celular tiene un rol unico: B=anticuerpos, Tcitotoxico=destruccion, dendritica=presentacion, macrofago=fagocitosis."
+},
+{
+  name:"Sala 4: El Codigo Inmune",
+  desc:"Un sistema de seguridad te bloquea la salida. Responde 4 preguntas correctamente para obtener los digitos del codigo de escape.",
+  type:"trivia",
+  questions:[
+    {q:"Que liquido circula por el sistema linfatico?",o:["Sangre","Linfa","Plasma","Suero"],c:1,dig:"3"},
+    {q:"Donde maduran los linfocitos T?",o:["Bazo","Medula osea","Timo","Ganglio"],c:2,dig:"7"},
+    {q:"Que organo filtra la sangre?",o:["Ganglio","Timo","Amigdala","Bazo"],c:3,dig:"1"},
+    {q:"Cuantos conductos linfaticos principales hay?",o:["1","2","3","4"],c:1,dig:"5"}
+  ],
+  hint:["Circula por los vasos linfaticos, no por arterias","Maduran en un organo con nombre de mariposa","Filtra sangre, no linfa","Uno derecho y uno toracico..."],
+  fact:"El codigo de escape se forma con los digitos: 3-7-1-5"
+},
+{
+  name:"Sala 5: La Salida",
+  desc:"Llegaste a la salida del sistema linfatico. Introduce el codigo de 4 digitos que obtuviste de las respuestas de la Sala 4 para escapar.",
+  type:"code",
+  code:"3715",
+  hint:["Recuerda las respuestas de la Sala 4: Linfa=3, Timo=7, Bazo=1, Dos conductos=5","El codigo es: primera respuesta, segunda, tercera, cuarta","3-7-1-5"],
+  fact:"El conducto toracico drena 3/4 del cuerpo. El conducto linfatico derecho drena el cuadrante superior derecho."
+}
+];
+
+/* === AUTH === */
+function doAuth(){
+  eA();sClick();
+  var u=document.getElementById('aU').value.trim();
+  var p=document.getElementById('aP').value.trim();
+  var r=document.getElementById('aR').value;
+  if(!u){alert('Ingresa tu nombre');return}
+  if(!p){alert('Ingresa una contrasena');return}
+  var us=gU();
+  if(us[u]&&us[u].p!==p){alert('Contrasena incorrecta');return}
+  if(!us[u]){us[u]={p:p,r:r,c:new Date().toISOString()};sU(us)}
+  cur={name:u,role:us[u].r};
+  var db=gD();db.s.push({u:u,t:new Date().toISOString(),a:'login'});sD(db);
+  document.getElementById('sAuth').classList.remove('on');
+  if(r==='teacher'){showAnl()}else{startGame()}
+}
+
+/* === GAME FLOW === */
+function startGame(){
+  G={room:0,timer:0,hints:3,timerInt:null,completed:false,answers:{}};
+  document.getElementById('sGame').classList.add('on');
+  startTimer();
+  loadRoom(0);
+}
+
+function startTimer(){
+  clearInterval(G.timerInt);
+  G.timerInt=setInterval(function(){
+    if(G.completed)return;
+    G.timer++;
+    var m=Math.floor(G.timer/60),s=G.timer%60;
+    document.getElementById('timer').textContent=(m<10?'0':'')+m+':'+(s<10?'0':'')+s;
+  },1000);
+}
+
+function loadRoom(idx){
+  G.room=idx;G.hints=3;
+  var room=rooms[idx];
+  document.getElementById('rName').textContent=room.name;
+  document.getElementById('hLeft').textContent=G.hints+' pistas';
+  var rc=document.getElementById('rContent');
+  var html='<div class="animIn">';
+  html+='<div class="roomTitle">'+room.name+'</div>';
+  html+='<div class="roomDesc">'+room.desc+'</div>';
+  html+='<div class="puzzleArea" id="puzzleArea"></div>';
+  html+='<div id="hintArea"></div>';
+  html+='<div class="btnRow"><button class="btn btnHint" onclick="showHint()">Pista</button></div>';
+  html+='</div>';
+  rc.innerHTML=html;
+  buildPuzzle(room);
+}
+
+function buildPuzzle(room){
+  var pa=document.getElementById('puzzleArea');
+  if(room.type==='sequence')buildSeq(room,pa);
+  else if(room.type==='match')buildMatch(room,pa);
+  else if(room.type==='trivia')buildTrivia(room,pa);
+  else if(room.type==='code')buildCode(room,pa);
+}
+
+/* === SEQUENCE PUZZLE === */
+function buildSeq(room,pa){
+  var shuf=room.shuffled[Math.floor(Math.random()*room.shuffled.length)].slice();
+  var html='<div class="dragItems" id="dragItems">';
+  shuf.forEach(function(i,idx){
+    var item=room.items[i];
+    html+='<div class="dragItem" data-idx="'+i+'" data-pos="'+idx+'" onclick="seqTap(this)">'+item.t+'</div>';
+  });
+  html+='</div>';
+  html+='<p style="text-align:center;color:rgba(255,255,255,0.4);font-size:12px;margin-bottom:12px">Toca dos items para intercambiar su posicion</p>';
+  html+='<div class="btnRow"><button class="btn btnPri" onclick="checkSeq()">Verificar orden</button></div>';
+  pa.innerHTML=html;
+}
+
+var seqSel=null;
+function seqTap(el){
+  sClick();
+  if(seqSel===el){el.classList.remove('selected');seqSel=null;return}
+  if(!seqSel){seqSel=el;el.classList.add('selected')}
+  else{
+    var t=seqSel.innerHTML,ti=seqSel.dataset.idx,tp=seqSel.dataset.pos;
+    seqSel.innerHTML=el.innerHTML;seqSel.dataset.idx=el.dataset.idx;seqSel.dataset.pos=el.dataset.pos;
+    el.innerHTML=t;el.dataset.idx=ti;el.dataset.pos=tp;
+    seqSel.classList.remove('selected');el.classList.remove('selected');
+    seqSel=null;
+  }
+}
+
+function checkSeq(){
+  var items=document.querySelectorAll('#dragItems .dragItem');
+  var order=[];
+  items.forEach(function(el){order.push(parseInt(el.dataset.idx))});
+  var correct=true;
+  for(var i=0;i<order.length;i++){if(order[i]!==i)correct=false}
+  if(correct){
+    sOk();
+    items.forEach(function(el){el.style.borderColor='#A3D9A5';el.style.background='rgba(163,217,165,0.15)'});
+    setTimeout(function(){nextRoom()},800);
+  }else{
+    sNo();
+    items.forEach(function(el){el.style.borderColor='#E64A4A';setTimeout(function(){el.style.borderColor='rgba(163,217,165,0.3)'},600)});
+  }
+}
+
+/* === MATCHING PUZZLE === */
+function buildMatch(room,pa){
+  var leftItems=[],rightItems=[];
+  room.pairs.forEach(function(p,i){
+    leftItems.push({text:p.l,idx:i});
+    rightItems.push({text:p.r,idx:i});
+  });
+  // Shuffle right
+  rightItems=shuffle(rightItems);
+
+  var html='<div class="matchGrid"><div class="matchCol"><h4>Celula</h4>';
+  leftItems.forEach(function(it){html+='<div class="matchItem" data-side="L" data-idx="'+it.idx+'" onclick="matchTap(this)">'+it.text+'</div>'});
+  html+='</div><div class="matchCol"><h4>Funcion</h4>';
+  rightItems.forEach(function(it){html+='<div class="matchItem" data-side="R" data-idx="'+it.idx+'" onclick="matchTap(this)">'+it.text+'</div>'});
+  html+='</div></div>';
+  html+='<div class="btnRow"><button class="btn btnPri" onclick="checkMatch()">Verificar</button></div>';
+  pa.innerHTML=html;
+  window._matchSel=null;window._matchPairs={};
+}
+
+function shuffle(arr){var a=arr.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t}return a}
+
+function matchTap(el){
+  sClick();
+  if(el.classList.contains('matched'))return;
+  var side=el.dataset.side,idx=parseInt(el.dataset.idx);
+  if(!window._matchSel){
+    window._matchSel={el:el,side:side,idx:idx};
+    el.classList.add('selected');
+  }else{
+    var prev=window._matchSel;
+    if(prev.side===side){
+      prev.el.classList.remove('selected');
+      window._matchSel={el:el,side:side,idx:idx};
+      el.classList.add('selected');
+      return;
+    }
+    var leftIdx=side==='L'?idx:prev.idx;
+    var rightIdx=side==='R'?idx:prev.idx;
+    if(leftIdx===rightIdx){
+      prev.el.classList.remove('selected');prev.el.classList.add('matched');
+      el.classList.add('matched');
+      sOk();
+    }else{
+      prev.el.classList.remove('selected');prev.el.classList.add('wrong');
+      el.classList.add('wrong');
+      sNo();
+      setTimeout(function(){prev.el.classList.remove('wrong');el.classList.remove('wrong')},500);
+    }
+    window._matchSel=null;
+  }
+}
+
+function checkMatch(){
+  var matched=document.querySelectorAll('.matchItem.matched');
+  if(matched.length===rooms[G.room].pairs.length*2){
+    sOk();setTimeout(function(){nextRoom()},600);
+  }
+}
+
+/* === TRIVIA PUZZLE === */
+function buildTrivia(room,pa){
+  window._triviaIdx=0;window._triviaCode='';
+  renderTrivia(room,pa);
+}
+
+function renderTrivia(room,pa){
+  if(window._triviaIdx>=room.questions.length){
+    pa.innerHTML='<div style="text-align:center;color:#A3D9A5;font-size:18px;padding:20px">Codigo obtenido: '+window._triviaCode+'</div><div class="btnRow"><button class="btn btnPri" onclick="nextRoom()">Continuar</button></div>';
+    return;
+  }
+  var q=room.questions[window._triviaIdx];
+  var html='<div style="text-align:center;color:rgba(255,255,255,0.4);font-size:12px;margin-bottom:8px">Pregunta '+(window._triviaIdx+1)+' de '+room.questions.length+'</div>';
+  html+='<div class="triviaQ">'+q.q+'</div>';
+  html+='<div class="triviaOpts">';
+  q.o.forEach(function(opt,i){
+    html+='<div class="triviaOpt" onclick="triviaAns('+i+')">'+opt+'</div>';
+  });
+  html+='</div>';
+  pa.innerHTML=html;
+}
+
+function triviaAns(i){
+  var q=rooms[G.room].questions[window._triviaIdx];
+  var opts=document.querySelectorAll('.triviaOpt');
+  opts.forEach(function(o){o.style.pointerEvents='none'});
+  if(i===q.c){
+    opts[i].classList.add('tok');
+    sOk();
+    window._triviaCode+=q.dig;
+    window._triviaIdx++;
+    setTimeout(function(){renderTrivia(rooms[G.room],document.getElementById('puzzleArea'))},1000);
+  }else{
+    opts[i].classList.add('tno');
+    opts[q.c].classList.add('tok');
+    sNo();
+    window._triviaIdx++;
+    setTimeout(function(){renderTrivia(rooms[G.room],document.getElementById('puzzleArea'))},1500);
+  }
+}
+
+/* === CODE PUZZLE === */
+function buildCode(room,pa){
+  var html='<div style="text-align:center;color:rgba(255,255,255,0.5);font-size:14px;margin-bottom:16px">Introduce el codigo de 4 digitos</div>';
+  html+='<div class="codeInput">';
+  html+='<input type="tel" maxlength="1" oninput="codeNext(this)" onkeydown="codeBack(event,this)">';
+  html+='<input type="tel" maxlength="1" oninput="codeNext(this)" onkeydown="codeBack(event,this)">';
+  html+='<input type="tel" maxlength="1" oninput="codeNext(this)" onkeydown="codeBack(event,this)">';
+  html+='<input type="tel" maxlength="1" oninput="codeNext(this)" onkeydown="codeBack(event,this)">';
+  html+='</div>';
+  html+='<div class="btnRow"><button class="btn btnPri" onclick="checkCode()">Abrir salida</button></div>';
+  pa.innerHTML=html;
+  setTimeout(function(){var inputs=document.querySelectorAll('.codeInput input');if(inputs.length)inputs[0].focus()},300);
+}
+
+function codeNext(el){
+  if(el.value){var inputs=document.querySelectorAll('.codeInput input');for(var i=0;i<inputs.length;i++){if(inputs[i]===el&&i<inputs.length-1){inputs[i+1].focus();break}}}
+}
+function codeBack(e,el){
+  if(e.key==='Backspace'&&!el.value){var inputs=document.querySelectorAll('.codeInput input');for(var i=0;i<inputs.length;i++){if(inputs[i]===el&&i>0){inputs[i-1].focus();break}}}
+}
+
+function checkCode(){
+  var inputs=document.querySelectorAll('.codeInput input');
+  var code='';inputs.forEach(function(i){code+=i.value});
+  if(code===rooms[G.room].code){
+    sWin();G.completed=true;
+    inputs.forEach(function(i){i.style.borderColor='#A3D9A5';i.style.background='rgba(163,217,165,0.2)'});
+    setTimeout(function(){showComplete()},1200);
+  }else{
+    sNo();
+    inputs.forEach(function(i){i.style.borderColor='#E64A4A';i.style.background='rgba(230,74,74,0.1)';setTimeout(function(){i.style.borderColor='rgba(255,255,255,0.15)';i.style.background='var(--card)'},600)});
+  }
+}
+
+/* === HINTS === */
+function showHint(){
+  if(G.hints<=0)return;
+  sHint();G.hints--;
+  document.getElementById('hLeft').textContent=G.hints+' pistas';
+  var room=rooms[G.room];
+  var hintIdx=3-G.hints-1;
+  var ha=document.getElementById('hintArea');
+  if(hintIdx<room.hint.length){
+    ha.innerHTML='<div class="hintPanel animIn">Pista: '+room.hint[hintIdx]+'</div>';
+  }
+}
+
+/* === NEXT ROOM === */
+function nextRoom(){
+  sOk();
+  if(G.room<rooms.length-1){
+    loadRoom(G.room+1);
+  }else{
+    // Room 4 trivia done, go to room 5 code
+    loadRoom(4);
+  }
+}
+
+/* === COMPLETE === */
+function showComplete(){
+  clearInterval(G.timerInt);
+  var m=Math.floor(G.timer/60),s=G.timer%60;
+  var timeStr=(m<10?'0':'')+m+':'+(s<10?'0':'')+s;
+  var score=Math.max(0,500-G.timer*2-G.hints*50);
+
+  document.getElementById('sGame').classList.remove('on');
+  document.getElementById('sComplete').classList.add('on');
+
+  var cb=document.getElementById('cBox');
+  cb.innerHTML='<h1>Escapaste!</h1><div class="time">Tiempo: '+timeStr+'</div><div class="score">Puntuacion: '+score+'</div>';
+  cb.innerHTML+='<div class="stats">';
+  cb.innerHTML+='<div class="stat"><div class="sv">'+rooms.length+'</div><div class="sl">Salas completadas</div></div>';
+  cb.innerHTML+='<div class="stat"><div class="sv">'+G.hints+'</div><div class="sl">Pistas restantes</div></div>';
+  cb.innerHTML+='<div class="stat"><div class="sv">'+timeStr+'</div><div class="sl">Tiempo total</div></div>';
+  cb.innerHTML+='<div class="stat"><div class="sv">'+score+'</div><div class="sl">Puntos</div></div>';
+  cb.innerHTML+='</div>';
+  cb.innerHTML+='<div style="background:rgba(163,217,165,0.08);border:1px solid rgba(163,217,165,0.2);border-radius:10px;padding:12px;font-size:13px;color:var(--gr);line-height:1.6;text-align:left;margin-bottom:16px"><b>Aprendiste que:</b><br>';
+  rooms.forEach(function(r){cb.innerHTML+=r.fact+'<br>'});
+  cb.innerHTML+='</div>';
+  cb.innerHTML+='<div class="btnRow"><button class="btn btnPri" onclick="goMenu()">Menu</button><button class="btn btnSec" onclick="startGame()">Jugar de nuevo</button></div>';
+
+  // Save
+  var us=gU();
+  if(us[cur.name]){
+    us[cur.name].sc=score;us[cur.name].tm=G.timer;us[cur.name].hints=G.hints;
+    us[cur.name].last=new Date().toISOString();
+    sU(us);
+  }
+  var db=gD();
+  db.a[cur.name]={sc:score,tm:G.timer,hints:G.hints,completed:true,date:new Date().toISOString()};
+  db.s.push({u:cur.name,t:new Date().toISOString(),a:'complete',sc:score,tm:G.timer});
+  sD(db);
+}
+
+/* === NAVIGATION === */
+function goMenu(){
+  clearInterval(G.timerInt);
+  document.getElementById('sGame').classList.remove('on');
+  document.getElementById('sComplete').classList.remove('on');
+  document.getElementById('sAnl').classList.remove('on');
+  document.getElementById('sAuth').classList.add('on');
+}
+
+/* === ANALYTICS === */
+function showAnl(){
+  document.getElementById('sAuth').classList.remove('on');
+  document.getElementById('sAnl').classList.add('on');
+  var db=gD(),us=gU(),an=db.a||{},ks=Object.keys(an);
+  var tp=Object.keys(us).filter(function(k){return us[k].r==='student'}).length;
+  var h='<h2>Panel Docente</h2>';
+  h+='<div class="st2">';
+  h+='<div class="sc2"><div class="vl">'+tp+'</div><div class="lb">Estudiantes</div></div>';
+  h+='<div class="sc2"><div class="vl">'+ks.length+'</div><div class="lb">Completaron</div></div>';
+  h+='</div>';
+  if(ks.length===0){
+    h+='<p style="color:rgba(255,255,255,0.4);text-align:center;padding:40px">Sin datos aun.</p>';
+  }else{
+    h+='<table><tr><th>Estudiante</th><th>Puntos</th><th>Tiempo</th><th>Pistas</th><th>Fecha</th></tr>';
+    ks.forEach(function(k){var d=an[k];var tm=d.tm?Math.floor(d.tm/60)+'m '+d.tm%60+'s':'-';
+    h+='<tr><td><b>'+k+'</b></td><td>'+d.sc+'</td><td>'+tm+'</td><td>'+d.hints+'</td><td>'+new Date(d.date).toLocaleDateString('es')+'</td></tr>'});
+    h+='</table>';
+  }
+  h+='<div class="btnRow" style="margin-top:16px"><button class="btn btnPri" onclick="expJ()">Exportar JSON</button><button class="btn btnSec" onclick="goMenu()">Volver</button></div>';
+  document.getElementById('anC').innerHTML=h;
+}
+
+function expJ(){
+  var db=gD(),us=gU(),d={date:new Date().toISOString(),users:us,analytics:db.a,sessions:db.s},
+  b=new Blob([JSON.stringify(d,null,2)],{type:'application/json'}),
+  u=URL.createObjectURL(b),a=document.createElement('a');
+  a.href=u;a.download='escape_room_linfatico_'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(u);
+}
+</script>
+</body>
+</html>
